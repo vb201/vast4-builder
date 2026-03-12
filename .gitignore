@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.yarn/
+yarn.lock
+pnpm-lock.yaml
+package-lock.json
+dist/
+
+# Environment variables
+.env
+.env.*

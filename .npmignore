@@ -1,0 +1,59 @@
+# Source files (only dist/ should be published)
+src/
+tests/
+
+# Development dependencies and config
+node_modules/
+.pnpm-store/
+.yarn/
+yarn.lock
+pnpm-lock.yaml
+package-lock.json
+
+# Build and development tools
+tsconfig.json
+tsconfig.*.json
+tsup.config.ts
+vite.config.ts
+vitest.config.ts
+.eslintrc.js
+.eslintrc.json
+.eslintignore
+.prettierrc
+.prettierignore
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD files
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+codecov.yml
+
+# Documentation source (keep only main README.md)
+docs/
+examples/
+*.md
+!README.md
+!CHANGELOG.md
+
+# Coverage and test reports
+coverage/
+.nyc_output/
+.coverage/
+junit.xml
+test-results/
+
+# Environment files
+.env
+.env.*

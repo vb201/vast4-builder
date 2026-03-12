@@ -1,0 +1,55 @@
+{
+    "name": "vast4-builder",
+    "version": "1.0.0",
+    "description": "Production-ready VAST 4.1 XML builder and parser for Linear, Non-Linear, Ad Pods, and Wrapper ads",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "module": "dist/index.esm.js",
+    "files": [
+        "dist",
+        "examples",
+        "README.md"
+    ],
+    "scripts": {
+        "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+        "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+        "test": "vitest",
+        "test:watch": "vitest --watch",
+        "test:coverage": "vitest --coverage",
+        "lint": "eslint src --ext .ts",
+        "lint:fix": "eslint src --ext .ts --fix",
+        "type-check": "tsc --noEmit",
+        "prepublishOnly": "npm run build && npm run test -- --run"
+    },
+    "keywords": [
+        "vast",
+        "vast4",
+        "advertising",
+        "video",
+        "xml",
+        "ads",
+        "linear",
+        "non-linear",
+        "wrapper",
+        "pod"
+    ],
+    "author": "Vaibhav Berry",
+    "license": "MIT",
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@typescript-eslint/eslint-plugin": "^6.0.0",
+        "@typescript-eslint/parser": "^6.0.0",
+        "@vitest/coverage-v8": "^1.0.0",
+        "eslint": "^8.0.0",
+        "tsup": "^8.0.0",
+        "typescript": "^5.0.0",
+        "vitest": "^1.0.0"
+    },
+    "dependencies": {
+        "fast-xml-parser": "^4.3.0",
+        "xmlbuilder2": "^3.1.0"
+    },
+    "engines": {
+        "node": ">=16.0.0"
+    }
+}
