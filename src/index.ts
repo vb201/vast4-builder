@@ -5,6 +5,7 @@ export * from './parse';
 export * from './validate';
 export * from './builders/linear';
 export * from './builders/nonlinear';
+export * from './builders/companion';
 export * from './builders/inline';
 export * from './builders/wrapper';
 export * from './builders/pod';

@@ -50,6 +50,11 @@ function buildAdElement(vast: any, ad: BuiltAd): void {
         adElement.att('sequence', ad.sequence);
     }
 
+    // VAST 4.1: conditional ad
+    if (ad.conditionalAd !== undefined) {
+        adElement.att('conditionalAd', ad.conditionalAd.toString());
+    }
+
     // Add the InLine or Wrapper content
     if (ad.type === 'InLine' && ad.node.InLine) {
         buildInLineElement(adElement, ad.node.InLine);
@@ -74,6 +79,33 @@ function buildInLineElement(adElement: any, inlineData: any): void {
     inline.ele('AdSystem').txt(inlineData.AdSystem || 'VAST4Builder');
     safeContent(inline.ele('AdTitle'), inlineData.AdTitle || '');
 
+    // AdServingId (VAST 4.1)
+    if (inlineData.AdServingId) {
+        inline.ele('AdServingId').txt(inlineData.AdServingId);
+    }
+
+    // Description
+    if (inlineData.Description) {
+        safeContent(inline.ele('Description'), inlineData.Description);
+    }
+
+    // Advertiser
+    if (inlineData.Advertiser) {
+        safeContent(inline.ele('Advertiser'), inlineData.Advertiser);
+    }
+
+    // Category (VAST 4.1)
+    if (inlineData.Category) {
+        const categories = Array.isArray(inlineData.Category)
+            ? inlineData.Category
+            : [inlineData.Category];
+        categories.forEach((cat: any) => {
+            const catElement = inline.ele('Category');
+            if (cat['@authority']) catElement.att('authority', cat['@authority']);
+            catElement.txt(cat['#text'] || cat);
+        });
+    }
+
     // Add impressions
     if (Array.isArray(inlineData.Impression)) {
         inlineData.Impression.forEach((imp: string) => {
@@ -81,6 +113,30 @@ function buildInLineElement(adElement: any, inlineData: any): void {
         });
     } else if (inlineData.Impression) {
         safeContent(inline.ele('Impression'), inlineData.Impression);
+    }
+
+    // Pricing
+    if (inlineData.Pricing) {
+        const pricingEl = inline.ele('Pricing');
+        if (inlineData.Pricing['@model']) pricingEl.att('model', inlineData.Pricing['@model']);
+        if (inlineData.Pricing['@currency'])
+            pricingEl.att('currency', inlineData.Pricing['@currency']);
+        pricingEl.txt(inlineData.Pricing['#text'] || '');
+    }
+
+    // Survey
+    if (inlineData.Survey) {
+        const surveys = Array.isArray(inlineData.Survey) ? inlineData.Survey : [inlineData.Survey];
+        surveys.forEach((s: any) => {
+            const surveyEl = inline.ele('Survey');
+            if (s['@type']) surveyEl.att('type', s['@type']);
+            safeContent(surveyEl, s['#text'] || s);
+        });
+    }
+
+    // Expires (VAST 4.1)
+    if (inlineData.Expires !== undefined) {
+        inline.ele('Expires').txt(String(inlineData.Expires));
     }
 
     // Add error URLs
@@ -106,6 +162,11 @@ function buildInLineElement(adElement: any, inlineData: any): void {
         });
     }
 
+    // ViewableImpression (VAST 4.1)
+    if (inlineData.ViewableImpression) {
+        buildViewableImpressionElement(inline, inlineData.ViewableImpression);
+    }
+
     // Add extensions
     if (inlineData.Extensions?.Extension) {
         const extensionsElement = inline.ele('Extensions');
@@ -115,7 +176,10 @@ function buildInLineElement(adElement: any, inlineData: any): void {
     // Add ad verifications
     if (inlineData.AdVerifications?.Verification) {
         const adVerificationsElement = inline.ele('AdVerifications');
-        buildAdVerificationsElement(adVerificationsElement, inlineData.AdVerifications.Verification);
+        buildAdVerificationsElement(
+            adVerificationsElement,
+            inlineData.AdVerifications.Verification,
+        );
     }
 }
 
@@ -127,6 +191,20 @@ function buildWrapperElement(adElement: any, wrapperData: any): void {
 
     if (wrapperData['@id']) {
         wrapper.att('id', wrapperData['@id']);
+    }
+
+    // VAST 4.1 wrapper attributes
+    if (wrapperData['@followAdditionalWrappers'] !== undefined) {
+        wrapper.att(
+            'followAdditionalWrappers',
+            wrapperData['@followAdditionalWrappers'].toString(),
+        );
+    }
+    if (wrapperData['@allowMultipleAds'] !== undefined) {
+        wrapper.att('allowMultipleAds', wrapperData['@allowMultipleAds'].toString());
+    }
+    if (wrapperData['@fallbackOnNoAd'] !== undefined) {
+        wrapper.att('fallbackOnNoAd', wrapperData['@fallbackOnNoAd'].toString());
     }
 
     // Add required elements
@@ -153,6 +231,18 @@ function buildWrapperElement(adElement: any, wrapperData: any): void {
         }
     }
 
+    // BlockedAdCategories (VAST 4.1)
+    if (wrapperData.BlockedAdCategories) {
+        const blocked = Array.isArray(wrapperData.BlockedAdCategories)
+            ? wrapperData.BlockedAdCategories
+            : [wrapperData.BlockedAdCategories];
+        blocked.forEach((cat: any) => {
+            const catEl = wrapper.ele('BlockedAdCategories');
+            if (cat['@authority']) catEl.att('authority', cat['@authority']);
+            catEl.txt(cat['#text'] || cat);
+        });
+    }
+
     // Add creatives (tracking shells only)
     if (wrapperData.Creatives?.Creative) {
         const creativesElement = wrapper.ele('Creatives');
@@ -165,6 +255,11 @@ function buildWrapperElement(adElement: any, wrapperData: any): void {
         });
     }
 
+    // ViewableImpression (VAST 4.1)
+    if (wrapperData.ViewableImpression) {
+        buildViewableImpressionElement(wrapper, wrapperData.ViewableImpression);
+    }
+
     // Add extensions
     if (wrapperData.Extensions?.Extension) {
         const extensionsElement = wrapper.ele('Extensions');
@@ -174,7 +269,10 @@ function buildWrapperElement(adElement: any, wrapperData: any): void {
     // Add ad verifications
     if (wrapperData.AdVerifications?.Verification) {
         const adVerificationsElement = wrapper.ele('AdVerifications');
-        buildAdVerificationsElement(adVerificationsElement, wrapperData.AdVerifications.Verification);
+        buildAdVerificationsElement(
+            adVerificationsElement,
+            wrapperData.AdVerifications.Verification,
+        );
     }
 }
 
@@ -184,8 +282,18 @@ function buildWrapperElement(adElement: any, wrapperData: any): void {
 function buildCreativeElement(creativesElement: any, creative: any): void {
     const creativeElement = creativesElement.ele('Creative');
 
-    if (creative['@id']) {
-        creativeElement.att('id', creative['@id']);
+    if (creative['@id']) creativeElement.att('id', creative['@id']);
+    if (creative['@adId']) creativeElement.att('adId', creative['@adId']);
+    if (creative['@sequence'] !== undefined) creativeElement.att('sequence', creative['@sequence']);
+    if (creative['@apiFramework']) creativeElement.att('apiFramework', creative['@apiFramework']);
+
+    // UniversalAdId (VAST 4.1)
+    if (creative.UniversalAdId) {
+        const uaid = creativeElement.ele('UniversalAdId');
+        if (creative.UniversalAdId['@idRegistry']) {
+            uaid.att('idRegistry', creative.UniversalAdId['@idRegistry']);
+        }
+        uaid.txt(creative.UniversalAdId['#text'] || '');
     }
 
     // Linear creative
@@ -196,6 +304,11 @@ function buildCreativeElement(creativesElement: any, creative: any): void {
     // NonLinear creative
     if (creative.NonLinearAds) {
         buildNonLinearAdsElement(creativeElement, creative.NonLinearAds);
+    }
+
+    // CompanionAds (VAST 4.1)
+    if (creative.CompanionAds) {
+        buildCompanionAdsElement(creativeElement, creative.CompanionAds);
     }
 }
 
@@ -224,9 +337,9 @@ function buildLinearElement(creativeElement: any, linear: any): void {
         buildTrackingEventsElement(linearElement, linear.TrackingEvents.Tracking);
     }
 
-    // MediaFiles (not for Wrapper)
-    if (linear.MediaFiles?.MediaFile) {
-        buildMediaFilesElement(linearElement, linear.MediaFiles.MediaFile);
+    // MediaFiles (not for Wrapper) — includes Mezzanine, InteractiveCreativeFile, ClosedCaptionFiles
+    if (linear.MediaFiles) {
+        buildMediaFilesContainer(linearElement, linear.MediaFiles);
     }
 }
 
@@ -279,30 +392,81 @@ function buildTrackingEventsElement(linearElement: any, tracking: any[]): void {
 }
 
 /**
- * Build MediaFiles element
+ * Build MediaFiles container element (VAST 4.1)
+ * Contains MediaFile[], Mezzanine?, InteractiveCreativeFile[], ClosedCaptionFiles?
  */
-function buildMediaFilesElement(linearElement: any, mediaFiles: any[]): void {
+function buildMediaFilesContainer(linearElement: any, mediaFilesData: any): void {
     const mediaFilesElement = linearElement.ele('MediaFiles');
 
-    mediaFiles.forEach((media: any) => {
-        const mediaFileElement = mediaFilesElement
-            .ele('MediaFile')
-            .att('delivery', media['@delivery'])
-            .att('type', media['@type'])
-            .att('width', media['@width'])
-            .att('height', media['@height']);
+    // Standard MediaFile entries
+    if (mediaFilesData.MediaFile) {
+        const files = Array.isArray(mediaFilesData.MediaFile)
+            ? mediaFilesData.MediaFile
+            : [mediaFilesData.MediaFile];
+        files.forEach((media: any) => {
+            const mediaFileElement = mediaFilesElement
+                .ele('MediaFile')
+                .att('delivery', media['@delivery'])
+                .att('type', media['@type'])
+                .att('width', media['@width'])
+                .att('height', media['@height']);
 
-        // Add optional attributes
-        if (media['@bitrate']) mediaFileElement.att('bitrate', media['@bitrate']);
-        if (media['@minBitrate']) mediaFileElement.att('minBitrate', media['@minBitrate']);
-        if (media['@maxBitrate']) mediaFileElement.att('maxBitrate', media['@maxBitrate']);
-        if (media['@scalable']) mediaFileElement.att('scalable', media['@scalable']);
-        if (media['@maintainAspectRatio'])
-            mediaFileElement.att('maintainAspectRatio', media['@maintainAspectRatio']);
-        if (media['@codec']) mediaFileElement.att('codec', media['@codec']);
+            if (media['@id']) mediaFileElement.att('id', media['@id']);
+            if (media['@bitrate']) mediaFileElement.att('bitrate', media['@bitrate']);
+            if (media['@minBitrate']) mediaFileElement.att('minBitrate', media['@minBitrate']);
+            if (media['@maxBitrate']) mediaFileElement.att('maxBitrate', media['@maxBitrate']);
+            if (media['@scalable']) mediaFileElement.att('scalable', media['@scalable']);
+            if (media['@maintainAspectRatio'])
+                mediaFileElement.att('maintainAspectRatio', media['@maintainAspectRatio']);
+            if (media['@codec']) mediaFileElement.att('codec', media['@codec']);
+            if (media['@mediaType']) mediaFileElement.att('mediaType', media['@mediaType']);
 
-        safeContent(mediaFileElement, media['#text']);
-    });
+            safeContent(mediaFileElement, media['#text']);
+        });
+    }
+
+    // Mezzanine (VAST 4.1 — source-quality file for ad stitching)
+    if (mediaFilesData.Mezzanine) {
+        const mez = mediaFilesData.Mezzanine;
+        const mezEl = mediaFilesElement
+            .ele('Mezzanine')
+            .att('delivery', mez['@delivery'] || 'progressive')
+            .att('type', mez['@type'])
+            .att('width', mez['@width'])
+            .att('height', mez['@height']);
+        if (mez['@codec']) mezEl.att('codec', mez['@codec']);
+        if (mez['@fileSize'] !== undefined) mezEl.att('fileSize', mez['@fileSize']);
+        safeContent(mezEl, mez['#text']);
+    }
+
+    // InteractiveCreativeFile (VAST 4.1 — SIMID/VPAID)
+    if (mediaFilesData.InteractiveCreativeFile) {
+        const icfs = Array.isArray(mediaFilesData.InteractiveCreativeFile)
+            ? mediaFilesData.InteractiveCreativeFile
+            : [mediaFilesData.InteractiveCreativeFile];
+        icfs.forEach((icf: any) => {
+            const icfEl = mediaFilesElement.ele('InteractiveCreativeFile');
+            if (icf['@type']) icfEl.att('type', icf['@type']);
+            if (icf['@apiFramework']) icfEl.att('apiFramework', icf['@apiFramework']);
+            if (icf['@variableDuration'] !== undefined)
+                icfEl.att('variableDuration', icf['@variableDuration'].toString());
+            safeContent(icfEl, icf['#text']);
+        });
+    }
+
+    // ClosedCaptionFiles (VAST 4.1)
+    if (mediaFilesData.ClosedCaptionFiles?.ClosedCaptionFile) {
+        const ccfContainer = mediaFilesElement.ele('ClosedCaptionFiles');
+        const ccfs = Array.isArray(mediaFilesData.ClosedCaptionFiles.ClosedCaptionFile)
+            ? mediaFilesData.ClosedCaptionFiles.ClosedCaptionFile
+            : [mediaFilesData.ClosedCaptionFiles.ClosedCaptionFile];
+        ccfs.forEach((ccf: any) => {
+            const ccfEl = ccfContainer.ele('ClosedCaptionFile');
+            if (ccf['@type']) ccfEl.att('type', ccf['@type']);
+            if (ccf['@language']) ccfEl.att('language', ccf['@language']);
+            safeContent(ccfEl, ccf['#text']);
+        });
+    }
 }
 
 /**
@@ -392,7 +556,8 @@ function buildAdVerificationsElement(adVerificationsElement: any, verifications:
                 : [verification.JavaScriptResource];
 
             jsResources.forEach((res: any) => {
-                const jsElement = verificationElement.ele('JavaScriptResource')
+                const jsElement = verificationElement
+                    .ele('JavaScriptResource')
                     .att('apiFramework', res['@apiFramework']);
 
                 if (res['@browserOptional'] !== undefined) {
@@ -409,7 +574,8 @@ function buildAdVerificationsElement(adVerificationsElement: any, verifications:
                 : [verification.ExecutableResource];
 
             exeResources.forEach((res: any) => {
-                const exeElement = verificationElement.ele('ExecutableResource')
+                const exeElement = verificationElement
+                    .ele('ExecutableResource')
                     .att('apiFramework', res['@apiFramework'])
                     .att('type', res['@type']);
 
@@ -422,7 +588,107 @@ function buildAdVerificationsElement(adVerificationsElement: any, verifications:
         }
 
         if (verification.VerificationParameters) {
-            safeContent(verificationElement.ele('VerificationParameters'), verification.VerificationParameters);
+            safeContent(
+                verificationElement.ele('VerificationParameters'),
+                verification.VerificationParameters,
+            );
+        }
+    });
+}
+
+/**
+ * Build ViewableImpression element (VAST 4.1)
+ */
+function buildViewableImpressionElement(parent: any, vi: any): void {
+    const viElement = parent.ele('ViewableImpression');
+    if (vi['@id']) viElement.att('id', vi['@id']);
+
+    if (vi.Viewable) {
+        const viewables = Array.isArray(vi.Viewable) ? vi.Viewable : [vi.Viewable];
+        viewables.forEach((url: string) => {
+            safeContent(viElement.ele('Viewable'), url);
+        });
+    }
+
+    if (vi.NotViewable) {
+        const notViewables = Array.isArray(vi.NotViewable) ? vi.NotViewable : [vi.NotViewable];
+        notViewables.forEach((url: string) => {
+            safeContent(viElement.ele('NotViewable'), url);
+        });
+    }
+
+    if (vi.ViewUndetermined) {
+        const undetermined = Array.isArray(vi.ViewUndetermined)
+            ? vi.ViewUndetermined
+            : [vi.ViewUndetermined];
+        undetermined.forEach((url: string) => {
+            safeContent(viElement.ele('ViewUndetermined'), url);
+        });
+    }
+}
+
+/**
+ * Build CompanionAds element (VAST 4.1)
+ */
+function buildCompanionAdsElement(creativeElement: any, companionAdsData: any): void {
+    const companionAdsElement = creativeElement.ele('CompanionAds');
+    if (companionAdsData['@required']) {
+        companionAdsElement.att('required', companionAdsData['@required']);
+    }
+
+    const companions = Array.isArray(companionAdsData.Companion)
+        ? companionAdsData.Companion
+        : [companionAdsData.Companion];
+
+    companions.forEach((comp: any) => {
+        const compElement = companionAdsElement
+            .ele('Companion')
+            .att('width', comp['@width'])
+            .att('height', comp['@height']);
+
+        if (comp['@id']) compElement.att('id', comp['@id']);
+        if (comp['@assetWidth']) compElement.att('assetWidth', comp['@assetWidth']);
+        if (comp['@assetHeight']) compElement.att('assetHeight', comp['@assetHeight']);
+        if (comp['@expandedWidth']) compElement.att('expandedWidth', comp['@expandedWidth']);
+        if (comp['@expandedHeight']) compElement.att('expandedHeight', comp['@expandedHeight']);
+        if (comp['@apiFramework']) compElement.att('apiFramework', comp['@apiFramework']);
+        if (comp['@adSlotId']) compElement.att('adSlotId', comp['@adSlotId']);
+        if (comp['@renderingMode']) compElement.att('renderingMode', comp['@renderingMode']);
+
+        // Resource
+        if (comp.StaticResource) {
+            const sr = compElement.ele('StaticResource');
+            if (comp.StaticResource['@creativeType'])
+                sr.att('creativeType', comp.StaticResource['@creativeType']);
+            safeContent(sr, comp.StaticResource['#text']);
+        }
+        if (comp.IFrameResource) {
+            safeContent(compElement.ele('IFrameResource'), comp.IFrameResource);
+        }
+        if (comp.HTMLResource) {
+            safeContent(compElement.ele('HTMLResource'), comp.HTMLResource);
+        }
+
+        // Tracking events
+        if (comp.TrackingEvents?.Tracking) {
+            buildTrackingEventsElement(compElement, comp.TrackingEvents.Tracking);
+        }
+
+        // Clicks
+        if (comp.CompanionClickThrough) {
+            safeContent(compElement.ele('CompanionClickThrough'), comp.CompanionClickThrough);
+        }
+        if (comp.CompanionClickTracking) {
+            const ccts = Array.isArray(comp.CompanionClickTracking)
+                ? comp.CompanionClickTracking
+                : [comp.CompanionClickTracking];
+            ccts.forEach((url: string) => {
+                safeContent(compElement.ele('CompanionClickTracking'), url);
+            });
+        }
+
+        if (comp.AltText) {
+            compElement.ele('AltText').txt(comp.AltText);
         }
     });
 }

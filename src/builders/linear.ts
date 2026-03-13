@@ -1,4 +1,11 @@
-import { LinearCreativeOpts, TrackingEvent, Clicks, MediaFile, LinearCreativeNode } from '../types';
+import {
+    LinearCreativeOpts,
+    TrackingEvent,
+    Clicks,
+    MediaFile,
+    MezzanineFile,
+    LinearCreativeNode,
+} from '../types';
 import { cdata } from '../utils';
 
 /**
@@ -13,11 +20,42 @@ export function buildLinearCreative(opts: LinearCreativeOpts): LinearCreativeNod
         throw new Error('Linear creative requires at least one media file');
     }
 
+    const mediaFilesNode: any = {
+        MediaFile: opts.mediaFiles.map(buildMediaFile),
+    };
+
+    // Mezzanine file (VAST 4.1 — source quality for ad stitching)
+    if (opts.mezzanine) {
+        mediaFilesNode.Mezzanine = buildMezzanineFile(opts.mezzanine);
+    }
+
+    // InteractiveCreativeFile (VAST 4.1 — SIMID/VPAID)
+    if (opts.interactiveCreativeFiles && opts.interactiveCreativeFiles.length > 0) {
+        mediaFilesNode.InteractiveCreativeFile = opts.interactiveCreativeFiles.map((icf) => {
+            const node: any = { '#text': cdata(icf.url) };
+            if (icf.type) node['@type'] = icf.type;
+            if (icf.apiFramework) node['@apiFramework'] = icf.apiFramework;
+            if (icf.variableDuration !== undefined)
+                node['@variableDuration'] = icf.variableDuration;
+            return node;
+        });
+    }
+
+    // ClosedCaptionFiles (VAST 4.1)
+    if (opts.closedCaptionFiles && opts.closedCaptionFiles.length > 0) {
+        mediaFilesNode.ClosedCaptionFiles = {
+            ClosedCaptionFile: opts.closedCaptionFiles.map((ccf) => {
+                const node: any = { '#text': cdata(ccf.url) };
+                if (ccf.type) node['@type'] = ccf.type;
+                if (ccf.language) node['@language'] = ccf.language;
+                return node;
+            }),
+        };
+    }
+
     const linear: any = {
         Duration: opts.duration,
-        MediaFiles: {
-            MediaFile: opts.mediaFiles.map(buildMediaFile),
-        },
+        MediaFiles: mediaFilesNode,
     };
 
     // Add skipoffset if provided (enables skippable)
@@ -49,31 +87,30 @@ function buildMediaFile(media: MediaFile) {
         '#text': cdata(media.url),
     };
 
-    if (media.bitrate !== undefined) {
-        mediaFile['@bitrate'] = media.bitrate;
-    }
-
-    if (media.minBitrate !== undefined) {
-        mediaFile['@minBitrate'] = media.minBitrate;
-    }
-
-    if (media.maxBitrate !== undefined) {
-        mediaFile['@maxBitrate'] = media.maxBitrate;
-    }
-
-    if (media.scalable !== undefined) {
-        mediaFile['@scalable'] = media.scalable;
-    }
-
-    if (media.maintainAspectRatio !== undefined) {
+    if (media.id) mediaFile['@id'] = media.id;
+    if (media.bitrate !== undefined) mediaFile['@bitrate'] = media.bitrate;
+    if (media.minBitrate !== undefined) mediaFile['@minBitrate'] = media.minBitrate;
+    if (media.maxBitrate !== undefined) mediaFile['@maxBitrate'] = media.maxBitrate;
+    if (media.scalable !== undefined) mediaFile['@scalable'] = media.scalable;
+    if (media.maintainAspectRatio !== undefined)
         mediaFile['@maintainAspectRatio'] = media.maintainAspectRatio;
-    }
-
-    if (media.codec) {
-        mediaFile['@codec'] = media.codec;
-    }
+    if (media.codec) mediaFile['@codec'] = media.codec;
+    if (media.mediaType) mediaFile['@mediaType'] = media.mediaType;
 
     return mediaFile;
+}
+
+function buildMezzanineFile(mez: MezzanineFile) {
+    const node: any = {
+        '@delivery': mez.delivery || 'progressive',
+        '@type': mez.type,
+        '@width': mez.width,
+        '@height': mez.height,
+        '#text': cdata(mez.url),
+    };
+    if (mez.codec) node['@codec'] = mez.codec;
+    if (mez.fileSize !== undefined) node['@fileSize'] = mez.fileSize;
+    return node;
 }
 
 function buildVideoClicks(clicks: Clicks) {

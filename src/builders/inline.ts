@@ -2,9 +2,10 @@ import { InlineAdOpts, BuiltAd, Creative } from '../types';
 import { cdata } from '../utils';
 import { buildLinearCreative } from './linear';
 import { buildNonLinearCreative } from './nonlinear';
+import { buildCompanionAds } from './companion';
 
 /**
- * Build an InLine ad following VAST 3.0 spec
+ * Build an InLine ad following VAST 4.1 spec
  */
 export function buildInlineAd(opts: InlineAdOpts): BuiltAd {
     if (!opts.title) {
@@ -34,6 +35,55 @@ export function buildInlineAd(opts: InlineAdOpts): BuiltAd {
         inlineAd.Error = opts.errorUrls.map((url) => cdata(url));
     }
 
+    // ─── VAST 4.1/4.2 metadata ───
+
+    // AdServingId (VAST 4.1)
+    if (opts.adServingId) {
+        inlineAd.AdServingId = opts.adServingId;
+    }
+
+    // Description
+    if (opts.description) {
+        inlineAd.Description = cdata(opts.description);
+    }
+
+    // Advertiser
+    if (opts.advertiser) {
+        inlineAd.Advertiser = cdata(opts.advertiser);
+    }
+
+    // Category (VAST 4.1)
+    if (opts.category && opts.category.length > 0) {
+        inlineAd.Category = opts.category.map((cat) => {
+            const c: any = { '#text': cat.value };
+            if (cat.authority) c['@authority'] = cat.authority;
+            return c;
+        });
+    }
+
+    // Pricing
+    if (opts.pricing) {
+        inlineAd.Pricing = {
+            '@model': opts.pricing.model,
+            '@currency': opts.pricing.currency,
+            '#text': opts.pricing.value,
+        };
+    }
+
+    // Survey
+    if (opts.survey && opts.survey.length > 0) {
+        inlineAd.Survey = opts.survey.map((s) => {
+            const sv: any = { '#text': cdata(s.url) };
+            if (s.type) sv['@type'] = s.type;
+            return sv;
+        });
+    }
+
+    // Expires (VAST 4.1)
+    if (opts.expires !== undefined) {
+        inlineAd.Expires = opts.expires;
+    }
+
     // Add custom telemetry as Extensions
     if (opts.customTelemetryJson) {
         inlineAd.Extensions = {
@@ -44,6 +94,25 @@ export function buildInlineAd(opts: InlineAdOpts): BuiltAd {
         };
     }
 
+    // Add ViewableImpression
+    if (opts.viewableImpression) {
+        const vi: any = {};
+        if (opts.viewableImpression.id) vi['@id'] = opts.viewableImpression.id;
+        if (opts.viewableImpression.viewable && opts.viewableImpression.viewable.length > 0) {
+            vi.Viewable = opts.viewableImpression.viewable.map((url) => cdata(url));
+        }
+        if (opts.viewableImpression.notViewable && opts.viewableImpression.notViewable.length > 0) {
+            vi.NotViewable = opts.viewableImpression.notViewable.map((url) => cdata(url));
+        }
+        if (
+            opts.viewableImpression.viewUndetermined &&
+            opts.viewableImpression.viewUndetermined.length > 0
+        ) {
+            vi.ViewUndetermined = opts.viewableImpression.viewUndetermined.map((url) => cdata(url));
+        }
+        inlineAd.ViewableImpression = vi;
+    }
+
     // Add AdVerifications
     if (opts.adVerifications && opts.adVerifications.length > 0) {
         inlineAd.AdVerifications = {
@@ -52,16 +121,21 @@ export function buildInlineAd(opts: InlineAdOpts): BuiltAd {
                 if (v.vendor) verification['@vendor'] = v.vendor;
 
                 if (v.javaScriptResource) {
-                    const js = Array.isArray(v.javaScriptResource) ? v.javaScriptResource : [v.javaScriptResource];
+                    const js = Array.isArray(v.javaScriptResource)
+                        ? v.javaScriptResource
+                        : [v.javaScriptResource];
                     verification.JavaScriptResource = js.map((j) => {
                         const res: any = { '@apiFramework': j.apiFramework, '#text': cdata(j.url) };
-                        if (j.browserOptional !== undefined) res['@browserOptional'] = j.browserOptional;
+                        if (j.browserOptional !== undefined)
+                            res['@browserOptional'] = j.browserOptional;
                         return res;
                     });
                 }
 
                 if (v.executableResource) {
-                    const ex = Array.isArray(v.executableResource) ? v.executableResource : [v.executableResource];
+                    const ex = Array.isArray(v.executableResource)
+                        ? v.executableResource
+                        : [v.executableResource];
                     verification.ExecutableResource = ex.map((e) => ({
                         '@apiFramework': e.apiFramework,
                         '@type': e.type,
@@ -100,14 +174,32 @@ function buildCreative(creative: Creative, index: number) {
         '@id': `creative-${index + 1}`,
     };
 
+    // VAST 4.1 creative-level attributes
+    if (creative.adId) creativeNode['@adId'] = creative.adId;
+    if (creative.sequence !== undefined) creativeNode['@sequence'] = creative.sequence;
+    if (creative.apiFramework) creativeNode['@apiFramework'] = creative.apiFramework;
+
+    // UniversalAdId on Creative (VAST 4.1)
+    if (creative.universalAdId) {
+        creativeNode.UniversalAdId = {
+            '@idRegistry': creative.universalAdId.idRegistry,
+            '#text': creative.universalAdId.idValue,
+        };
+    }
+
     if (creative.linear) {
         const linearNode = buildLinearCreative(creative.linear);
         Object.assign(creativeNode, linearNode);
     } else if (creative.nonLinear) {
         const nonLinearNode = buildNonLinearCreative(creative.nonLinear);
         Object.assign(creativeNode, nonLinearNode);
-    } else {
-        throw new Error('Creative must have either linear or nonLinear content');
+    } else if (!creative.companionAds) {
+        throw new Error('Creative must have linear, nonLinear, or companionAds content');
+    }
+
+    // CompanionAds (VAST 4.1)
+    if (creative.companionAds) {
+        creativeNode.CompanionAds = buildCompanionAds(creative.companionAds);
     }
 
     return creativeNode;

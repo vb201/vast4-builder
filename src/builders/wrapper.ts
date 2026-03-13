@@ -21,9 +21,29 @@ export function buildWrapperAd(opts: WrapperAdOpts): BuiltAd {
         Impression: opts.impressions.map((url) => cdata(url)),
     };
 
+    // VAST 4.1 wrapper attributes
+    if (opts.followAdditionalWrappers !== undefined) {
+        wrapperAd['@followAdditionalWrappers'] = opts.followAdditionalWrappers;
+    }
+    if (opts.allowMultipleAds !== undefined) {
+        wrapperAd['@allowMultipleAds'] = opts.allowMultipleAds;
+    }
+    if (opts.fallbackOnNoAd !== undefined) {
+        wrapperAd['@fallbackOnNoAd'] = opts.fallbackOnNoAd;
+    }
+
     // Add error URLs if provided
     if (opts.errorUrls && opts.errorUrls.length > 0) {
         wrapperAd.Error = opts.errorUrls.map((url) => cdata(url));
+    }
+
+    // BlockedAdCategories (VAST 4.1)
+    if (opts.blockedAdCategories && opts.blockedAdCategories.length > 0) {
+        wrapperAd.BlockedAdCategories = opts.blockedAdCategories.map((cat) => {
+            const c: any = { '#text': cat.value };
+            if (cat.authority) c['@authority'] = cat.authority;
+            return c;
+        });
     }
 
     // Add tracking creative shells if provided
@@ -43,6 +63,25 @@ export function buildWrapperAd(opts: WrapperAdOpts): BuiltAd {
         };
     }
 
+    // ViewableImpression (VAST 4.1 — also valid on Wrapper)
+    if (opts.viewableImpression) {
+        const vi: any = {};
+        if (opts.viewableImpression.id) vi['@id'] = opts.viewableImpression.id;
+        if (opts.viewableImpression.viewable && opts.viewableImpression.viewable.length > 0) {
+            vi.Viewable = opts.viewableImpression.viewable.map((url) => cdata(url));
+        }
+        if (opts.viewableImpression.notViewable && opts.viewableImpression.notViewable.length > 0) {
+            vi.NotViewable = opts.viewableImpression.notViewable.map((url) => cdata(url));
+        }
+        if (
+            opts.viewableImpression.viewUndetermined &&
+            opts.viewableImpression.viewUndetermined.length > 0
+        ) {
+            vi.ViewUndetermined = opts.viewableImpression.viewUndetermined.map((url) => cdata(url));
+        }
+        wrapperAd.ViewableImpression = vi;
+    }
+
     // Add AdVerifications
     if (opts.adVerifications && opts.adVerifications.length > 0) {
         wrapperAd.AdVerifications = {
@@ -51,16 +90,21 @@ export function buildWrapperAd(opts: WrapperAdOpts): BuiltAd {
                 if (v.vendor) verification['@vendor'] = v.vendor;
 
                 if (v.javaScriptResource) {
-                    const js = Array.isArray(v.javaScriptResource) ? v.javaScriptResource : [v.javaScriptResource];
+                    const js = Array.isArray(v.javaScriptResource)
+                        ? v.javaScriptResource
+                        : [v.javaScriptResource];
                     verification.JavaScriptResource = js.map((j) => {
                         const res: any = { '@apiFramework': j.apiFramework, '#text': cdata(j.url) };
-                        if (j.browserOptional !== undefined) res['@browserOptional'] = j.browserOptional;
+                        if (j.browserOptional !== undefined)
+                            res['@browserOptional'] = j.browserOptional;
                         return res;
                     });
                 }
 
                 if (v.executableResource) {
-                    const ex = Array.isArray(v.executableResource) ? v.executableResource : [v.executableResource];
+                    const ex = Array.isArray(v.executableResource)
+                        ? v.executableResource
+                        : [v.executableResource];
                     verification.ExecutableResource = ex.map((e) => ({
                         '@apiFramework': e.apiFramework,
                         '@type': e.type,

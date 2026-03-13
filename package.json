@@ -1,6 +1,6 @@
 {
     "name": "vast4-builder",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Production-ready VAST 4.1 XML builder and parser for Linear, Non-Linear, Ad Pods, and Wrapper ads",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -47,6 +47,7 @@
     },
     "dependencies": {
         "fast-xml-parser": "^4.3.0",
+        "vast4-builder": "^1.1.0",
         "xmlbuilder2": "^3.1.0"
     },
     "engines": {
